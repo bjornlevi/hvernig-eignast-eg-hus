@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{# A number field; with slider=True a range input is linked to it. kind: money, pct or int #}
+{% macro num(key, label, unit, kind="money", min=0, max=none, step=1, hint=none, slider=false) %}
+  <div class="field">
+    <label class="lbl" for="f-{{ key }}">{{ label }}</label>
+    <div class="input-unit">
+      <input id="f-{{ key }}" type="text" inputmode="{{ 'decimal' if kind == 'pct' else 'numeric' }}"
+             data-key="{{ key }}" data-kind="{{ kind }}" data-min="{{ min }}"{% if max is not none %} data-max="{{ max }}"{% endif %} autocomplete="off">
+      <span class="unit">{{ unit }}</span>
+    </div>
+    {% if slider %}
+      <input type="range" data-key="{{ key }}" min="{{ min }}" max="{{ max }}" step="{{ step }}" aria-label="{{ label }}" tabindex="-1">
+    {% endif %}
+    {% if hint %}<div class="hint">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+  <h1>{{ site_name }}</h1>
+  <p class="lead">
+    Til að kaupa íbúð þarftu tvennt: <strong>eigið fé</strong> fyrir útborgun og kaupkostnaði, og <strong>nógu há laun</strong>
+    til að standast greiðslumat bankans. Sláðu inn aldur þinn og hvað þú átt í dag og sjáðu hvenær þú getur keypt,
+    hvaða laun þú þarft og hvað lánið kostar.
+  </p>
+
+  <div class="layout">
+    <form class="panel inputs" id="inputs" autocomplete="off" onsubmit="return false">
+      <fieldset>
+        <legend>Þú</legend>
+        {{ num("age", "Aldur", "ára", kind="int", min=16, max=80) }}
+        {{ num("equity", "Eigið fé í dag", "kr.", max=40000000, step=100000, slider=true,
+               hint="Sparnaður og annað sem þú getur lagt í útborgun.") }}
+        {{ num("monthlySaving", "Sparnaður á mánuði", "kr.", max=500000, step=5000, slider=true) }}
+        {{ num("wage", "Mánaðarlaun fyrir skatt", "kr.", min=0, max=3000000, step=10000, slider=true) }}
+        <div class="hint" id="net-hint" style="margin:-.6rem 0 .9rem"></div>
+        <div class="field">
+          <span class="lbl" style="font-weight:600">Kaupendur</span>
+          <div class="seg" role="radiogroup" aria-label="Kaupendur">
+            <label><input type="radio" name="buyers" value="1" data-key="buyers" data-kind="int"> Ég einn/ein</label>
+            <label><input type="radio" name="buyers" value="2" data-key="buyers" data-kind="int"> Tvö saman</label>
+          </div>
+          <div class="hint">Ef þið eruð tvö eru launin samanlögð laun ykkar beggja.</div>
+        </div>
+        {{ num("livingCosts", "Framfærsluviðmið á mánuði", "kr.", step=10000) }}
+        <div class="hint" style="margin:-.6rem 0 .9rem">
+          Framfærsla heimilisins án húsnæðiskostnaðar. Reiknaðu þitt eigið viðmið í
+          <a href="https://island.is/framfaerslureiknivel" target="_blank" rel="noopener">framfærslureiknivél
+          Umboðsmanns skuldara</a> og settu upphæðina hér.
+        </div>
+        {{ num("housingNow", "Húsnæðiskostnaður í dag", "kr.", step=5000) }}
+        <div class="hint" style="margin:-.6rem 0 .9rem">
+          Leiga, rafmagn, hiti, hússjóður o.fl. Þetta vantar í framfærsluviðmiðið og þarf því að bæta við.
+          Báðar upphæðirnar eru til hliðsjónar og hafa ekki áhrif á aðra útreikninga.
+        </div>
+        <label class="check"><input type="checkbox" data-key="firstTime" data-kind="bool">
+          <span>Fyrstu íbúðarkaup <span class="hint" style="display:block">Hærra lánshlutfall, rýmri greiðslubyrði og hálft stimpilgjald.</span></span></label>
+        <label class="check"><input type="checkbox" data-key="usePrivatePension" data-kind="bool">
+          <span>Nota séreignarsparnað <span class="hint" style="display:block" id="pension-hint">4% frá þér + 2% frá vinnuveitanda, skattfrjálst upp í útborgun.</span></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Íbúðin</legend>
+        {{ num("price", "Verð íbúðar í dag", "kr.", min=10000000, max=150000000, step=500000, slider=true) }}
+        <div class="presets" style="margin:-.5rem 0 .9rem">
+          <button type="button" class="chip" data-price="40000000">Lítil íbúð á landsbyggðinni · 40 m.</button>
+          <button type="button" class="chip" data-price="55000000">2ja herb. á höfuðborgarsvæðinu · 55 m.</button>
+          <button type="button" class="chip" data-price="72000000">3ja herb. á höfuðborgarsvæðinu · 72 m.</button>
+          <button type="button" class="chip" data-price="95000000">Raðhús/sérbýli · 95 m.</button>
+        </div>
+        {{ num("houseGrowth", "Hækkun íbúðaverðs umfram verðbólgu", "% á ári", kind="pct", min=-10, max=20,
+               hint="Íbúðaverð hefur að jafnaði hækkað hraðar en verðlag. Á meðan þú safnar hækkar því markmiðið.") }}
+      </fieldset>
+
+      <fieldset>
+        <legend>Lánið</legend>
+        <div class="field">
+          <div class="seg" role="radiogroup" aria-label="Tegund láns">
+            <label><input type="radio" name="loanType" value="indexed" data-key="loanType" data-kind="str"> Verðtryggt</label>
+            <label><input type="radio" name="loanType" value="nominal" data-key="loanType" data-kind="str"> Óverðtryggt</label>
+          </div>
+        </div>
+        <div class="row2">
+          <div data-show="indexed">{{ num("rateIndexed", "Vextir", "%", kind="pct", max=20) }}</div>
+          <div data-show="nominal">{{ num("rateNominal", "Vextir", "%", kind="pct", max=30) }}</div>
+          {{ num("inflation", "Verðbólga", "% á ári", kind="pct", min=-5, max=30) }}
+        </div>
+        {{ num("termYears", "Lánstími", "ár", kind="int", min=5, max=40, step=1, slider=true) }}
+        <div class="hint" data-show="indexed" style="margin-top:-.5rem">Verðtryggð lán til lengri tíma en 25 ára bjóðast aðeins yngri og tekjulægri lántakendum.</div>
+      </fieldset>
+
+      <details class="more">
+        <summary>Fleiri forsendur</summary>
+        <fieldset>
+          <legend>Reglur um lánveitingar</legend>
+          <div class="row2">
+            {{ num("ltv", "Hámarks­lánshlutfall", "%", kind="pct", max=100) }}
+            {{ num("dsti", "Hámarks­greiðslubyrði", "% af útb.", kind="pct", max=100) }}
+          </div>
+          <div class="hint" style="margin:-.5rem 0 .9rem">
+            Reglur Seðlabankans: lán mega vera að hámarki 80% af verði (85% við fyrstu kaup) og afborganir að hámarki 35% af
+            ráðstöfunartekjum (40% við fyrstu kaup).
+          </div>
+          <div class="row2">
+            {{ num("stressRateIndexed", "Lágmarksvextir í mati, verðtr.", "%", kind="pct", max=20) }}
+            {{ num("stressRateNominal", "Lágmarksvextir í mati, óverðtr.", "%", kind="pct", max=30) }}
+          </div>
+          {{ num("stressTermIndexed", "Hámarkslánstími í mati, verðtryggt", "ár", kind="int", min=5, max=40,
+                 hint="Greiðslubyrði verðtryggðra lána er reiknuð eins og lánið sé að hámarki til þessa tíma, þó lánið sé lengra.") }}
+        </fieldset>
+        <fieldset>
+          <legend>Kaupkostnaður og sparnaður</legend>
+          <div class="row2">
+            {{ num("stampDuty", "Stimpilgjald", "%", kind="pct", max=5) }}
+            {{ num("fees", "Annar kostnaður", "kr.", step=10000) }}
+          </div>
+          <div class="hint" style="margin:-.5rem 0 .9rem">Lántökugjald, þinglýsing, skjalagerð o.fl.</div>
+          {{ num("savingsReturn", "Raunávöxtun sparnaðar", "% á ári", kind="pct", min=-10, max=20,
+                 hint="Ávöxtun umfram verðbólgu, t.d. á verðtryggðum sparireikningi.") }}
+        </fieldset>
+      </details>
+
+      <div class="actions">
+        <button type="button" class="btn" id="reset">Upphafsstilla</button>
+        <button type="button" class="btn" id="share">Afrita slóð</button>
+      </div>
+      <a class="summary" id="summary" href="#results"></a>
+    </form>
+
+    <div class="results" id="results" aria-live="polite">
+      <div class="cards">
+        <div class="card" id="card-deposit">
+          <div class="label">Útborgun</div>
+          <div class="big" id="deposit-big"></div>
+          <div id="deposit-text"></div>
+        </div>
+        <div class="card" id="card-wage">
+          <div class="label">Laun sem þarf</div>
+          <div class="big" id="wage-big"></div>
+          <div id="wage-text"></div>
+        </div>
+        <div class="card">
+          <div class="label">Lánið</div>
+          <div class="big" id="loan-big"></div>
+          <div id="loan-text"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Hvað þarftu að leggja fyrir?</h3>
+        <p class="muted small" style="margin-top:0" id="horizon-intro"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kaupa eftir</th><th>Aldur</th><th class="r">Sparnaður á mánuði</th></tr></thead>
+            <tbody id="horizons"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head">
+          <h3>Sparnaðurinn og markmiðið</h3>
+          <div class="legend"><span style="--c:var(--series-1)">Eigið fé</span><span style="--c:var(--series-2)">Útborgun + kaupkostnaður</span></div>
+        </div>
+        <div class="chart" id="chart-saving"></div>
+        <p class="muted small" style="margin-bottom:0">Á verðlagi dagsins í dag. Línurnar mætast þegar þú átt fyrir útborgun.</p>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head">
+          <h3>Eftirstöðvar lánsins</h3>
+          <div class="legend"><span style="--c:var(--series-1)">Á verðlagi dagsins í dag</span><span class="dashed" style="--c:var(--series-2)">Í krónum hvers árs</span></div>
+        </div>
+        <div class="chart" id="chart-balance"></div>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head">
+          <h3>Mánaðarleg afborgun</h3>
+          <div class="legend"><span style="--c:var(--series-1)">Á verðlagi dagsins í dag</span><span class="dashed" style="--c:var(--series-2)">Í krónum hvers árs</span></div>
+        </div>
+        <div class="chart" id="chart-payment"></div>
+        <p class="muted small" style="margin-bottom:0" id="payment-note"></p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Leiðin að eigin íbúð</h2>
+  <ol class="steps panel">
+    <li>
+      <h3>Safnaðu fyrir útborgun</h3>
+      <p>Bankinn lánar að hámarki 85% af kaupverði við fyrstu kaup (annars 80%). Afganginn, að minnsta kosti 15%,
+        þarftu að eiga sjálf/ur, auk kaupkostnaðar. Fyrir 55 milljóna íbúð eru það rúmar 8 milljónir.</p>
+      <p><strong>Séreignarsparnaður</strong> er besta leiðin: þú greiðir 4% af launum og vinnuveitandinn bætir 2% við.
+        Við fyrstu kaup máttu nota hann skattfrjálst, allt að 500.000 kr. á ári á mann í 10 ár, ýmist í útborgun eða inn á lánið eftir kaup.
+        Geymdu annan sparnað á verðtryggðum eða bundnum reikningi svo verðbólgan éti hann ekki.</p>
+    </li>
+    <li>
+      <h3>Stattu greiðslumat</h3>
+      <p>Bankinn skoðar hvort þú ráðir við afborganirnar. Tvennt þarf að ganga upp:</p>
+      <ul>
+        <li><strong>Greiðslubyrðarhlutfall:</strong> afborganir mega vera að hámarki 40% af útborguðum launum við fyrstu kaup (annars 35%).
+          Til öryggis er reiknað með lágmarksvöxtum og að verðtryggð lán séu ekki lengri en 25 ár.</li>
+        <li><strong>Greiðslumat:</strong> bankinn kannar líka hvort nóg sé eftir fyrir framfærslu heimilisins, miðað við
+          framfærsluviðmið. Reiknivélin sýnir þann afgang til hliðsjónar.</li>
+      </ul>
+      <p>Ef launin duga ekki má kaupa ódýrari íbúð, kaupa með öðrum eða spara meira svo lánið verði minna.</p>
+    </li>
+    <li>
+      <h3>Veldu lán</h3>
+      <div class="compare">
+        <div>
+          <p><strong>Verðtryggt lán</strong> hefur lægri vexti og lægri afborganir í byrjun. Höfuðstóllinn hækkar með verðbólgu
+            og afborgunin líka, svo lánið lækkar hægt fyrstu árin. Heildarkostnaður í krónum verður hár, en mælt á föstu verðlagi
+            borgarðu jafnt allan tímann.</p>
+        </div>
+        <div>
+          <p><strong>Óverðtryggt lán</strong> hefur hærri vexti og þyngri afborganir í byrjun, en höfuðstóllinn lækkar strax.
+            Afborgunin er föst í krónum og verður því léttari með tímanum þegar laun hækka. Erfiðara er að standast greiðslumat.</p>
+        </div>
+      </div>
+      <p>Algengt er að blanda þessu saman. Gott er að greiða aukalega inn á lánið þegar svigrúm er til.</p>
+    </li>
+    <li>
+      <h3>Gerðu ráð fyrir kaupkostnaði</h3>
+      <p>Stimpilgjald er 0,8% af fasteignamati, en helmingi lægra við fyrstu kaup. Auk þess bætist við lántökugjald,
+        þinglýsingargjöld og skjalagerð. Kaupandi greiðir yfirleitt ekki söluþóknun fasteignasala.</p>
+    </li>
+    <li>
+      <h3>Borgaðu af láninu</h3>
+      <p>Haltu áfram að nota séreignarsparnaðinn inn á lánið, skattfrjálst, þar til 10 árin eru liðin. Fylgstu með vöxtum.
+        Þegar fastir vextir losna getur borgað sig að endurfjármagna. Þá er gott að eiga varasjóð fyrir óvæntum útgjöldum.</p>
+    </li>
+  </ol>
+  <p class="muted small">
+    Fleiri úrræði: <strong>hlutdeildarlán</strong> HMS fyrir tekjulægri fyrstu kaupendur, þar sem ríkið lánar hluta af kaupverðinu
+    og nægir þá 5% útborgun. Sjá vef Húsnæðis- og mannvirkjastofnunar.
+  </p>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='calc.js') }}"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+{% endblock %}

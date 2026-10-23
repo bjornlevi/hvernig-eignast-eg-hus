@@ -1,0 +1,14 @@
+# /etc/systemd/system/hus.service
+[Unit]
+Description=Hvernig eignast eg hus (gunicorn)
+After=network.target
+
+[Service]
+User=web
+WorkingDirectory=/srv/hus
+EnvironmentFile=/etc/default/hus
+ExecStart=/srv/hus/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8019 wsgi:app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

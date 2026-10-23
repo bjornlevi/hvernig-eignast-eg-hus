@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="is">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <meta name="description" content="Reiknivél: hvað þarf ég að spara mikið og hvað þarf ég að hafa í laun til að kaupa íbúð?">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg:      #f6f3ee;
+      --panel:   #ffffff;
+      --ink:     #1f1b16;
+      --muted:   #6b645a;
+      --border:  #e4ddd2;
+      --field-border: #cfc6b8;
+      --field-bg: #ffffff;
+      --accent:  #24527a;
+      --accent-ink: #ffffff;
+      --accent-light: #e7eef5;
+      --ok:      #2f6b3a;
+      --ok-light: #e6f2e7;
+      --bad:     #8c2f39;
+      --bad-light: #f6e9ea;
+      --grid:    #ebe6dd;
+      --series-1: #2a78d6;
+      --series-2: #eb6834;
+      --radius:  10px;
+      --shadow:  0 1px 3px rgba(31,27,22,.06), 0 4px 14px rgba(31,27,22,.05);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #181715; --panel: #22211e; --ink: #f0efec; --muted: #b3ada3; --border: #3a3732;
+        --field-border: #4a463f; --field-bg: #1c1b19;
+        --accent: #8fb6dc; --accent-ink: #10202f; --accent-light: #24313d;
+        --ok: #8fcf98; --ok-light: #1f3323; --bad: #f0a0a8; --bad-light: #3b2226;
+        --grid: #34312c; --series-1: #3987e5; --series-2: #d95926;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    a { color: var(--accent); }
+    h1, h2, h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; line-height: 1.2; }
+    h1 { font-size: 2.2rem; margin: 0 0 .5rem; }
+    h2 { font-size: 1.4rem; margin: 2.5rem 0 .75rem; }
+    h3 { font-size: 1.1rem; margin: 0 0 .5rem; }
+
+    header.site { background: var(--panel); border-bottom: 1px solid var(--border); padding: .75rem 1rem; }
+    header.site .inner { max-width: 1180px; margin: 0 auto; }
+    header.site .brand { font-family: Georgia, serif; font-weight: bold; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+    .lead { font-size: 1.1rem; max-width: 46rem; }
+    .muted { color: var(--muted); }
+    .small { font-size: .875rem; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; margin-bottom: 1rem; }
+
+    /* Inputs on the left (sticky on wide screens), results on the right */
+    .layout { display: grid; grid-template-columns: minmax(0, 370px) minmax(0, 1fr); gap: 1.5rem; align-items: start; margin-top: 1.5rem; }
+    .inputs { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .inputs { position: static; max-height: none; overflow: visible; }
+    }
+    fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; min-width: 0; }
+    legend { font-family: Georgia, serif; font-weight: bold; font-size: 1.1rem; margin-bottom: .5rem; padding: 0; }
+    .field { margin-bottom: .9rem; }
+    .field label.lbl { display: flex; justify-content: space-between; gap: .5rem; font-weight: 600; margin-bottom: .2rem; }
+    .hint { font-size: .82rem; color: var(--muted); margin-top: .15rem; }
+    .input-unit { display: flex; align-items: center; border: 1px solid var(--field-border); border-radius: 6px; background: var(--field-bg); }
+    .input-unit:focus-within { outline: 2px solid var(--accent); border-color: var(--accent); }
+    .input-unit input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; color: var(--ink); padding: .45rem .6rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .input-unit input:focus { outline: none; }
+    .input-unit .unit { padding: 0 .6rem 0 0; color: var(--muted); font-size: .9rem; white-space: nowrap; }
+    input[type=range] { width: 100%; margin: .4rem 0 0; accent-color: var(--accent); }
+    .row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 .75rem; }
+    .input-unit input { width: 100%; }
+    .check { display: flex; gap: .5rem; align-items: flex-start; margin-bottom: .6rem; cursor: pointer; }
+    .check input { margin-top: .3rem; accent-color: var(--accent); }
+    .seg { display: flex; border: 1px solid var(--field-border); border-radius: 6px; overflow: hidden; }
+    .seg label { flex: 1; text-align: center; padding: .4rem .5rem; cursor: pointer; font-size: .92rem; }
+    .seg label + label { border-left: 1px solid var(--field-border); }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+    .seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -3px; }
+    .presets { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; }
+    .chip { font: inherit; font-size: .8rem; border: 1px solid var(--field-border); background: var(--field-bg); color: var(--ink); border-radius: 999px; padding: .15rem .6rem; cursor: pointer; }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    details.more summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-bottom: .75rem; }
+    .btn { display: inline-block; font: inherit; font-weight: 600; border: 1px solid var(--accent); background: transparent; color: var(--accent); padding: .45rem 1rem; border-radius: 6px; cursor: pointer; }
+    .btn:hover { background: var(--accent-light); }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+    /* Results */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.1rem 1.25rem; }
+    .cards .card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .card .label { font-size: .85rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+    .card .big { font-family: Georgia, serif; font-size: 1.85rem; line-height: 1.15; margin: .3rem 0 .4rem; font-variant-numeric: tabular-nums; }
+    .card p { margin: .35rem 0 0; }
+    .card.ok { border-left: 4px solid var(--ok); }
+    .card.bad { border-left: 4px solid var(--bad); }
+    .badge { display: inline-block; font-size: .8rem; font-weight: 600; padding: .1rem .55rem; border-radius: 999px; }
+    .badge.ok { background: var(--ok-light); color: var(--ok); }
+    .badge.bad { background: var(--bad-light); color: var(--bad); }
+    .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+    th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); }
+    th { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+    td.r, th.r { text-align: right; }
+    tr.current td { font-weight: 600; }
+
+    /* Charts */
+    .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+    .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+    .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c); vertical-align: middle; margin-right: .4rem; }
+    .legend span.dashed::before { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+    .chart { position: relative; margin-top: .5rem; }
+    .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .chart .axis text { fill: var(--muted); font-size: 11px; }
+    .chart .gridline { stroke: var(--grid); stroke-width: 1; }
+    .chart .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .chart .crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+    .chart .marker { stroke: var(--panel); stroke-width: 2; }
+    .chart .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+                  box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: .4rem .6rem; font-size: .82rem; white-space: nowrap; }
+    .chart .tip b { display: block; margin-bottom: .15rem; }
+    .chart .tip i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: .35rem; }
+
+    /* Explanations */
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
+    .steps > li { counter-increment: step; position: relative; padding-left: 3rem; }
+    .steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+                          background: var(--accent); color: var(--accent-ink); font-weight: 700; display: grid; place-items: center; }
+    .steps p { margin: .3rem 0; }
+    .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; }
+    /* Phones: the results are below the form, so keep the two headline numbers in view */
+    .summary { display: none; }
+    @media (max-width: 860px) {
+      .summary { display: flex; justify-content: space-between; gap: .5rem 1rem; flex-wrap: wrap; position: sticky; bottom: 0; z-index: 5;
+                 margin: 0 -1.25rem -1.25rem; padding: .6rem 1.25rem; background: var(--panel); border-top: 1px solid var(--border);
+                 border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 -4px 14px rgba(0,0,0,.08);
+                 font-weight: 600; font-size: .92rem; color: inherit; text-decoration: none; }
+      .summary .ok { color: var(--ok); }
+      .summary .bad { color: var(--bad); }
+    }
+    footer.site { text-align: center; color: var(--muted); font-size: .85rem; padding: 2rem 1rem; max-width: 50rem; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="inner">
+      <a class="brand" href="{{ url_for('home') }}">{{ site_name }}</a>
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site">
+    Reiknivélin gefur grófa mynd en er ekki lánsloforð eða fjármálaráðgjöf. Bankar meta hvert tilvik fyrir sig og
+    reglur Seðlabankans, vextir og skattar breytast. Allt er reiknað í vafranum þínum og ekkert er vistað; forsendurnar
+    eru geymdar í slóðinni svo hægt sé að deila niðurstöðunni.
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
